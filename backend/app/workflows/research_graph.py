@@ -75,8 +75,31 @@ async def run_research_workflow(session_id: str, user_id: str, topic: str, depth
         )
 
     try:
-        # Run the full graph
-        final_state = await graph.ainvoke(initial_state)
+        # Run the full graph step-by-step to update DB status in real-time
+        final_state = dict(initial_state)
+        async for output in graph.astream(initial_state):
+            for node_name, state_updates in output.items():
+                final_state.update(state_updates)
+                
+                statuses = final_state.get("agent_statuses", {})
+                current_agent = final_state.get("current_agent", "unknown")
+                
+                # Map agent to session status
+                status_map = {
+                    "planner": "planning",
+                    "searcher": "searching",
+                    "credibility": "scoring",
+                    "synthesizer": "synthesizing",
+                    "citation": "formatting",
+                    "done": "completed"
+                }
+                session_status = status_map.get(current_agent, "processing")
+                
+                async with async_session_local() as db:
+                    repo = ResearchRepository(db)
+                    await repo.update_session_status(
+                        UUID(session_id), session_status, statuses
+                    )
 
         # ── Persist results to DB ────────────────────────────────────
         async with async_session_local() as db:

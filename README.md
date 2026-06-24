@@ -35,11 +35,31 @@
 # Root .env
 GOOGLE_API_KEY=your-key-here    # from AI Studio (free)
 GEMINI_MODEL=gemini-1.5-flash
+## Environment Variables
 
-# Frontend .env (already has Firebase config)
-VITE_FIREBASE_API_KEY=...       # from Firebase Console
-VITE_FIREBASE_PROJECT_ID=...
+### Backend (`.env`)
+```env
+GOOGLE_API_KEY=your_gemini_key_here
+DATABASE_URL=postgresql+asyncpg://researchforge:password@localhost:5432/researchforge
+REDIS_URL=redis://localhost:6379/0
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
 ```
+
+### Frontend (`frontend/.env`)
+```env
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+---
+
+## 🚀 Quick Start
 
 ### Step 3 — Start Everything
 
@@ -48,7 +68,13 @@ VITE_FIREBASE_PROJECT_ID=...
 .\start.ps1
 ```
 
-**Option B — Manual**
+**Option B — Docker Compose**
+```bash
+docker-compose up -d --build
+```
+*(Runs Postgres, Redis, ChromaDB, Backend on :8080, Frontend on :3000)*
+
+**Option C — Manual**
 
 ```powershell
 # Terminal 1: Backend

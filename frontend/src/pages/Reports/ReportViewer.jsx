@@ -81,6 +81,78 @@ function ReportViewer() {
     toast.success("Downloaded as Markdown!");
   };
 
+  const handleDownloadPDF = async () => {
+    const html2pdf = (await import("html2pdf.js")).default;
+    const element = document.getElementById("report-content-to-export");
+    
+    // Create a temporary clone to format for PDF (white background, dark text)
+    const clone = element.cloneNode(true);
+    clone.style.backgroundColor = "white";
+    clone.style.color = "black";
+    clone.style.padding = "40px";
+    clone.style.width = "800px";
+    
+    // Convert prose-invert classes to standard prose for the clone
+    const proseDiv = clone.querySelector('.prose');
+    if (proseDiv) {
+      proseDiv.classList.remove('prose-invert');
+      proseDiv.style.color = "black";
+      const headings = clone.querySelectorAll('h1, h2, h3, h4, h5, h6, strong');
+      headings.forEach(h => h.style.color = "black");
+    }
+
+    document.body.appendChild(clone);
+
+    const opt = {
+      margin:       0.5,
+      filename:     `${displayReport?.title || "report"}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    toast.loading("Generating PDF...", { id: "pdf" });
+    await html2pdf().set(opt).from(clone).save();
+    document.body.removeChild(clone);
+    toast.success("Downloaded as PDF!", { id: "pdf" });
+  };
+
+  const handleDownloadWord = async () => {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import("docx");
+    const { saveAs } = await import("file-saver");
+    
+    // Quick Markdown to DOCX conversion
+    const text = displayReport?.full_content || "";
+    const lines = text.split('\n');
+    const children = [];
+
+    lines.forEach(line => {
+      if (line.startsWith('# ')) {
+        children.push(new Paragraph({ text: line.replace('# ', ''), heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }));
+      } else if (line.startsWith('## ')) {
+        children.push(new Paragraph({ text: line.replace('## ', ''), heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }));
+      } else if (line.startsWith('### ')) {
+        children.push(new Paragraph({ text: line.replace('### ', ''), heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 100 } }));
+      } else if (line.startsWith('- ') || line.startsWith('* ')) {
+        children.push(new Paragraph({ text: line.replace(/^[-*]\s/, ''), bullet: { level: 0 } }));
+      } else if (line.trim() !== '') {
+        children.push(new Paragraph({ text: line, spacing: { after: 200 } }));
+      }
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: children,
+      }],
+    });
+
+    toast.loading("Generating Word document...", { id: "docx" });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${displayReport?.title || "report"}.docx`);
+    toast.success("Downloaded as Word!", { id: "docx" });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0D1117] flex items-center justify-center">
@@ -116,15 +188,23 @@ function ReportViewer() {
             className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm font-medium">
             <ArrowLeft className="w-4 h-4" /> Back to Reports
           </button>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2">
             <button onClick={handleCopy}
-              className="flex items-center gap-2 px-4 py-2 bg-white/[0.03] border border-white/[0.08] rounded-xl text-sm font-medium hover:bg-white/[0.06] transition-all">
-              {copied ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              {copied ? "Copied!" : "Copy"}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-xs font-medium hover:bg-white/[0.06] transition-all">
+              {copied ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? "Copied" : "Copy"}
             </button>
             <button onClick={handleDownloadMarkdown}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-500/20">
-              <Download className="w-4 h-4" /> Download
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-xs font-medium hover:bg-white/[0.06] transition-all">
+              <Download className="w-3.5 h-3.5" /> Markdown
+            </button>
+            <button onClick={handleDownloadWord}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition-all">
+              <FileText className="w-3.5 h-3.5" /> Word
+            </button>
+            <button onClick={handleDownloadPDF}
+              className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 rounded-lg text-xs font-bold transition-all shadow-lg shadow-blue-500/20">
+              <Download className="w-3.5 h-3.5" /> PDF
             </button>
           </div>
         </div>
@@ -149,7 +229,7 @@ function ReportViewer() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Report content */}
           <div className="lg:col-span-2">
-            <div className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/[0.06]">
+            <div id="report-content-to-export" className="p-6 md:p-8 rounded-3xl bg-white/[0.02] border border-white/[0.06]">
               <div className="prose prose-invert prose-sm max-w-none prose-headings:font-black prose-headings:tracking-tight prose-a:text-blue-400 prose-strong:text-white prose-code:text-emerald-400">
                 <ReactMarkdown>{displayReport.full_content}</ReactMarkdown>
               </div>

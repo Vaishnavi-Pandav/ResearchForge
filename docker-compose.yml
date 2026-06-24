@@ -1,33 +1,19 @@
-services:
-  api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    volumes:
-      - ./backend:/app/backend
+version: '3.8'
 
-  db:
-    image: postgres:16-alpine
+services:
+  postgres:
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-researchforge}
+      POSTGRES_USER: researchforge
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: researchforge
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U researchforge"]
+      interval: 5s
       timeout: 5s
       retries: 5
 
@@ -35,14 +21,52 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   chromadb:
     image: chromadb/chroma:latest
     ports:
-      - "8001:8000"
+      - "8000:8000"
     volumes:
-      - chromadb_data:/chroma/chroma
+      - chroma_data:/chroma/chroma
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://researchforge:password@postgres:5432/researchforge
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - APP_NAME=ResearchForge API
+      - CORS_ORIGINS=["http://localhost:3000"]
+    env_file:
+      - .env  # Ensure GOOGLE_API_KEY is defined here
+    command: sh -c "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      chromadb:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8080/api/v1
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
-  chromadb_data:
+  redis_data:
+  chroma_data:

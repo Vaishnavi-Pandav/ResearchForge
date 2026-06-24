@@ -16,6 +16,8 @@ import SettingsPage from '../pages/Settings/SettingsPage'
 import ProfilePage from '../pages/Profile/ProfilePage'
 import NotFound from '../pages/NotFound/NotFound'
 
+import ErrorBoundary from '../components/ui/ErrorBoundary'
+
 // Redirect already-authenticated users away from auth pages
 function AuthRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -25,9 +27,10 @@ function AuthRoute({ children }) {
 
 function AppRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public */}
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
         <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
@@ -45,7 +48,8 @@ function AppRoutes() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

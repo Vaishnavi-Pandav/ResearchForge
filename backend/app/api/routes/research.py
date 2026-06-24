@@ -2,10 +2,11 @@
 import asyncio
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.security import get_current_user
+from backend.app.core.rate_limit import limiter
 from backend.app.db.session import get_db
 from backend.app.models.user import User
 from backend.app.schemas.research import (
@@ -21,7 +22,9 @@ router = APIRouter()
 
 
 @router.post("/", response_model=ResearchSessionResponse)
+@limiter.limit("5/minute")
 async def create_research_session(
+    request: Request,
     data: ResearchSessionCreate,
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),

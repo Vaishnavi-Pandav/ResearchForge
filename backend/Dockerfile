@@ -23,7 +23,7 @@ FROM base
 COPY --from=builder /app/wheels /wheels
 COPY --from=builder /app/base.txt .
 
-RUN pip install --no-cache /wheels/*
+RUN pip install --default-timeout=1000 --no-cache /wheels/*
 
 # Copy app code
 COPY ./app /app/backend/app
